@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌲 Waldwoche 2026</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --green:       #3a7d44;
+            --green-dark:  #1e4d28;
+            --green-light: #e8f5e9;
+            --amber:       #e8a838;
+            --bg:          #fafaf8;
+            --text:        #2c3e2d;
+            --gray:        #6b7c6d;
+            --border:      #d4e6d5;
+            --red:         #c0392b;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        /* ── HEADER ── */
+        header {
+            background: var(--green-dark);
+            color: white;
+            padding: 1.25rem 1rem 0.75rem;
+            text-align: center;
+        }
+        header h1 { font-size: 1.5rem; font-weight: 700; }
+        header p  { font-size: 0.82rem; opacity: 0.75; margin-top: 0.2rem; }
+
+        /* ── TABS ── */
+        .tabs {
+            display: flex;
+            background: var(--green-dark);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-bottom: 3px solid #0d2f16;
+        }
+        .tab-btn {
+            flex: 1;
+            min-width: 72px;
+            padding: 0.6rem 0.4rem 0.5rem;
+            background: transparent;
+            border: none;
+            color: rgba(255,255,255,0.65);
+            font-size: 0.72rem;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: center;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .tab-btn .icon { display: block; font-size: 1.3rem; margin-bottom: 0.15rem; }
+        .tab-btn.active { color: #fff; border-bottom-color: var(--amber); }
+
+        /* ── CONTENT ── */
+        .tab-content { display: none; padding: 1rem; max-width: 600px; margin: 0 auto; }
+        .tab-content.active { display: block; }
+
+        .info-box {
+            background: var(--green-light);
+            border-left: 4px solid var(--green);
+            padding: 0.7rem 0.9rem;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 1.25rem;
+            font-size: 0.85rem;
+            color: var(--green-dark);
+        }
+
+        /* ── SECTION TITLES ── */
+        .section-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--green-dark);
+            margin-bottom: 0.65rem;
+            padding-bottom: 0.4rem;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .entries-section { margin-bottom: 1.75rem; }
+
+        /* ── ENTRY CARD ── */
+        .entry-card {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.75rem 0.9rem;
+            margin-bottom: 0.4rem;
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+        }
+        .badge {
+            background: var(--green-light);
+            color: var(--green-dark);
+            padding: 0.2rem 0.55rem;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .entry-main { flex: 1; min-width: 0; }
+        .entry-name { font-weight: 600; font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .entry-sub  { font-size: 0.78rem; color: var(--gray); }
+
+        .delete-btn {
+            background: none; border: none; color: var(--red);
+            cursor: pointer; font-size: 1rem; padding: 0.2rem 0.3rem;
+            opacity: 0; pointer-events: none; transition: opacity 0.2s; flex-shrink: 0;
+        }
+        .admin-mode .delete-btn { opacity: 1; pointer-events: all; }
+
+        /* ── DAY GROUPS ── */
+        .day-group { margin-bottom: 0.9rem; }
+        .day-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--gray);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 0.3rem;
+        }
+        .slot-empty {
+            font-size: 0.82rem;
+            color: var(--gray);
+            font-style: italic;
+            padding: 0.5rem 0.9rem;
+            background: #fff;
+            border: 1px dashed var(--border);
+            border-radius: 8px;
+        }
+
+        /* ── FAHRT COLUMNS ── */
+        .fahr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+        @media (max-width: 480px) { .fahr-grid { grid-template-columns: 1fr; } }
+        .fahr-col-title {
+            font-size: 0.8rem; font-weight: 700; color: var(--green-dark);
+            margin-bottom: 0.4rem; padding-bottom: 0.3rem;
+            border-bottom: 2px solid var(--border);
+        }
+        .fahr-card {
+            background: #fff; border: 1px solid var(--border); border-radius: 10px;
+            padding: 0.65rem 0.8rem; margin-bottom: 0.4rem;
+        }
+        .fahr-card-header { display: flex; align-items: center; }
+        .fahr-name { font-weight: 600; font-size: 0.88rem; flex: 1; }
+        .fahr-sub  { font-size: 0.76rem; color: var(--gray); margin-top: 0.15rem; }
+
+        /* ── EMPTY STATE ── */
+        .empty-state { text-align: center; padding: 1.5rem; color: var(--gray); font-size: 0.82rem; }
+        .empty-state .icon { font-size: 2rem; display: block; margin-bottom: 0.4rem; }
+
+        /* ── FORM ── */
+        .form-section {
+            background: #fff; border: 1px solid var(--border);
+            border-radius: 12px; padding: 1rem;
+        }
+        .form-group { margin-bottom: 0.9rem; }
+        .form-group label {
+            display: block; font-size: 0.82rem; font-weight: 600;
+            color: var(--green-dark); margin-bottom: 0.35rem;
+        }
+        .form-group input,
+        .form-group select {
+            width: 100%; padding: 0.6rem 0.75rem;
+            border: 1.5px solid var(--border); border-radius: 8px;
+            font-size: 0.95rem; font-family: inherit; color: var(--text);
+            background: var(--bg); transition: border-color 0.2s;
+        }
+        .form-group input:focus,
+        .form-group select:focus { outline: none; border-color: var(--green); }
+
+        .radio-group { display: flex; gap: 1.25rem; flex-wrap: wrap; }
+        .radio-label { display: flex; align-items: center; gap: 0.35rem; cursor: pointer; font-size: 0.88rem; }
+
+        .btn {
+            width: 100%; padding: 0.8rem;
+            background: var(--green); color: #fff;
+            border: none; border-radius: 8px;
+            font-size: 0.95rem; font-weight: 700; cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn:hover    { background: var(--green-dark); }
+        .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+        /* ── LOG ── */
+        .log-section { max-width: 600px; margin: 0.75rem auto; padding: 0 1rem 5rem; }
+        details.log-wrap > summary {
+            cursor: pointer; padding: 0.65rem 1rem;
+            background: #fff; border: 1px solid var(--border); border-radius: 8px;
+            font-size: 0.82rem; font-weight: 600; color: var(--gray);
+            list-style: none; user-select: none;
+        }
+        details.log-wrap > summary::-webkit-details-marker { display: none; }
+        .log-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; margin-top: 0.5rem; }
+        .log-table th {
+            text-align: left; padding: 0.35rem 0.5rem;
+            background: var(--green-light); color: var(--green-dark); font-weight: 700;
+        }
+        .log-table td { padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+        .log-table tr:nth-child(even) td { background: var(--bg); }
+
+        /* ── ADMIN BAR ── */
+        .admin-bar {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: #fff; border-top: 1px solid var(--border);
+            padding: 0.6rem 1rem;
+            display: flex; align-items: center; justify-content: space-between;
+            z-index: 100;
+        }
+        .admin-status { font-size: 0.78rem; color: var(--gray); }
+        .admin-status.on { color: var(--red); font-weight: 700; }
+        .btn-sm {
+            padding: 0.38rem 0.9rem; font-size: 0.78rem;
+            background: var(--green); color: #fff;
+            border: none; border-radius: 6px; cursor: pointer; font-weight: 600;
+        }
+        .btn-sm.off { background: var(--red); }
+
+        /* ── LOADING ── */
+        .loading { text-align: center; padding: 1.5rem; color: var(--gray); font-size: 0.82rem; }
+
+        /* ── TOAST ── */
+        .toast {
+            position: fixed; top: 1rem; left: 50%; transform: translateX(-50%);
+            background: var(--green-dark); color: #fff;
+            padding: 0.65rem 1.4rem; border-radius: 8px;
+            font-size: 0.88rem; z-index: 1000;
+            opacity: 0; transition: opacity 0.3s; pointer-events: none;
+            white-space: nowrap;
+        }
+        .toast.show  { opacity: 1; }
+        .toast.error { background: var(--red); }
+
+        /* ── MODAL ── */
+        .overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+            display: none; align-items: center; justify-content: center;
+            z-index: 200; padding: 1rem;
+        }
+        .overlay.show { display: flex; }
+        .modal {
+            background: #fff; border-radius: 14px;
+            padding: 1.4rem; width: 100%; max-width: 360px;
+        }
+        .modal h3 { margin-bottom: 0.9rem; color: var(--green-dark); font-size: 1.05rem; }
+        .modal p  { font-size: 0.85rem; color: var(--gray); margin-bottom: 0.75rem; }
+        .modal input {
+            width: 100%; padding: 0.6rem 0.75rem;
+            border: 1.5px solid var(--border); border-radius: 8px;
+            font-size: 0.95rem; margin-bottom: 0.75rem;
+        }
+        .modal input:focus { outline: none; border-color: var(--green); }
+        .modal-err { color: var(--red); font-size: 0.78rem; margin: -0.5rem 0 0.5rem; display: none; }
+        .modal-btns { display: flex; gap: 0.5rem; }
+        .btn-cancel {
+            flex: 1; padding: 0.7rem; background: var(--bg);
+            border: 1.5px solid var(--border); border-radius: 8px;
+            cursor: pointer; font-size: 0.9rem;
+        }
+        .btn-ok {
+            flex: 1; padding: 0.7rem; background: var(--green); color: #fff;
+            border: none; border-radius: 8px; cursor: pointer;
+            font-size: 0.9rem; font-weight: 700;
+        }
+        .btn-ok.danger { background: var(--red); }
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════ HEADER -->
+<header>
+    <h1>🌲 Waldwoche 2026</h1>
+    <p>05. – 13. Mai 2026 · Zeltplatz Schimborn</p>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════ TABS -->
+<nav class="tabs">
+    <button class="tab-btn active" onclick="showTab('essen', this)">
+        <span class="icon">🍽️</span>Mittagessen
+    </button>
+    <button class="tab-btn" onclick="showTab('feuerholz', this)">
+        <span class="icon">🪵</span>Feuerholz
+    </button>
+    <button class="tab-btn" onclick="showTab('fahrt', this)">
+        <span class="icon">🚗</span>Fahrten
+    </button>
+    <button class="tab-btn" onclick="showTab('kuchen', this)">
+        <span class="icon">🎂</span>Kuchen
+    </button>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════ TAB: ESSEN -->
+<section id="tab-essen" class="tab-content active">
+    <div class="info-box">
+        Bitte das Essen um <strong>12:00 Uhr</strong> im Kindergarten abholen und zum Zeltplatz Schimborn bringen –
+        die Kinder essen um <strong>12:30 Uhr</strong>. Eine Person pro Tag reicht aus.
+    </div>
+
+    <div class="entries-section">
+        <div class="section-title">Wer bringt das Essen?</div>
+        <div id="essen-entries"><div class="loading">Lädt…</div></div>
+    </div>
+
+    <div class="form-section">
+        <div class="section-title">Ich bringe das Essen</div>
+        <form id="essen-form" onsubmit="submitEssen(event)">
+            <div class="form-group">
+                <label for="essen-datum">Tag *</label>
+                <select id="essen-datum" required>
+                    <option value="">Bitte wählen…</option>
+                    <option>Dienstag, 05.05.</option>
+                    <option>Mittwoch, 06.05.</option>
+                    <option>Donnerstag, 07.05.</option>
+                    <option>Freitag, 08.05.</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="essen-name">Dein Name *</label>
+                <input type="text" id="essen-name" placeholder="Vorname Nachname" required>
+            </div>
+            <button type="submit" class="btn">Eintragen</button>
+        </form>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ TAB: FEUERHOLZ -->
+<section id="tab-feuerholz" class="tab-content">
+    <div class="info-box">
+        Wer kann Feuerholz zum Zeltplatz mitbringen? Trag dich hier ein!
+    </div>
+
+    <div class="entries-section">
+        <div class="section-title">Wer bringt Feuerholz?</div>
+        <div id="feuerholz-entries"><div class="loading">Lädt…</div></div>
+    </div>
+
+    <div class="form-section">
+        <div class="section-title">Ich bringe Feuerholz</div>
+        <form id="feuerholz-form" onsubmit="submitFeuerholz(event)">
+            <div class="form-group">
+                <label for="feuerholz-datum">Datum *</label>
+                <select id="feuerholz-datum" required>
+                    <option value="">Bitte wählen…</option>
+                    <option>Dienstag, 05.05.</option>
+                    <option>Mittwoch, 06.05.</option>
+                    <option>Donnerstag, 07.05.</option>
+                    <option>Freitag, 08.05.</option>
+                    <option>Samstag, 09.05.</option>
+                    <option>Sonntag, 10.05.</option>
+                    <option>Montag, 11.05.</option>
+                    <option>Dienstag, 12.05.</option>
+                    <option>Mittwoch, 13.05.</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="feuerholz-name">Dein Name *</label>
+                <input type="text" id="feuerholz-name" placeholder="Vorname Nachname" required>
+            </div>
+            <button type="submit" class="btn">Eintragen</button>
+        </form>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ TAB: FAHRTEN -->
+<section id="tab-fahrt" class="tab-content">
+    <div class="info-box">
+        Waldwoche <strong>05. – 13. Mai 2026</strong>. Trag dich ein ob du eine Mitfahrgelegenheit suchst oder anbietest.
+    </div>
+
+    <div class="entries-section">
+        <div class="section-title">Fahrgemeinschaften</div>
+        <div class="fahr-grid">
+            <div>
+                <div class="fahr-col-title">🔍 Ich suche</div>
+                <div id="fahrt-suche"><div class="loading">Lädt…</div></div>
+            </div>
+            <div>
+                <div class="fahr-col-title">🚗 Ich biete</div>
+                <div id="fahrt-biete"><div class="loading">Lädt…</div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-section">
+        <div class="section-title">Eintragen</div>
+        <form id="fahrt-form" onsubmit="submitFahrt(event)">
+            <div class="form-group">
+                <label>Ich… *</label>
+                <div class="radio-group">
+                    <label class="radio-label">
+                        <input type="radio" name="fahrt-typ" value="suche" required>
+                        suche eine Mitfahrgelegenheit
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="fahrt-typ" value="biete">
+                        biete eine Mitfahrgelegenheit
+                    </label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="fahrt-name">Name *</label>
+                <input type="text" id="fahrt-name" placeholder="Vorname Nachname" required>
+            </div>
+            <div class="form-group">
+                <label for="fahrt-gruppe">Gruppe des Kindes *</label>
+                <input type="text" id="fahrt-gruppe" placeholder="z.B. Schmetterlinge" required>
+            </div>
+            <div class="form-group">
+                <label for="fahrt-telefon">Telefonnummer *</label>
+                <input type="tel" id="fahrt-telefon" placeholder="0171 1234567" required>
+            </div>
+            <button type="submit" class="btn">Eintragen</button>
+        </form>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ TAB: KUCHEN -->
+<section id="tab-kuchen" class="tab-content">
+    <div class="info-box">
+        Wer bringt einen Kuchen oder Gebäck mit? Trag dich hier ein!
+    </div>
+
+    <div class="entries-section">
+        <div class="section-title">Kuchenliste</div>
+        <div id="kuchen-entries"><div class="loading">Lädt…</div></div>
+    </div>
+
+    <div class="form-section">
+        <div class="section-title">Ich bringe Kuchen / Gebäck</div>
+        <form id="kuchen-form" onsubmit="submitKuchen(event)">
+            <div class="form-group">
+                <label for="kuchen-name">Dein Name *</label>
+                <input type="text" id="kuchen-name" placeholder="Vorname Nachname" required>
+            </div>
+            <div class="form-group">
+                <label for="kuchen-art">Was bringst du mit? *</label>
+                <input type="text" id="kuchen-art" placeholder="z.B. Schokoladenkuchen, Muffins…" required>
+            </div>
+            <div class="form-group">
+                <label for="kuchen-datum">Für welchen Tag? *</label>
+                <select id="kuchen-datum" required>
+                    <option value="">Bitte wählen…</option>
+                    <option>Dienstag, 05.05.</option>
+                    <option>Mittwoch, 06.05.</option>
+                    <option>Donnerstag, 07.05.</option>
+                    <option>Freitag, 08.05.</option>
+                    <option>Samstag, 09.05.</option>
+                    <option>Sonntag, 10.05.</option>
+                    <option>Montag, 11.05.</option>
+                    <option>Dienstag, 12.05.</option>
+                    <option>Mittwoch, 13.05.</option>
+                </select>
+            </div>
+            <button type="submit" class="btn">Eintragen</button>
+        </form>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ LOG -->
+<div class="log-section">
+    <details class="log-wrap" id="log-wrap" ontoggle="onLogToggle(this)">
+        <summary>📋 Änderungsprotokoll anzeigen</summary>
+        <div id="log-content" style="overflow-x:auto;margin-top:0.5rem">
+            <div class="loading">Wird geladen…</div>
+        </div>
+    </details>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ ADMIN BAR -->
+<div class="admin-bar">
+    <span class="admin-status" id="admin-status">Ansichtsmodus</span>
+    <button class="btn-sm" id="admin-btn" onclick="toggleAdmin()">🔒 Admin</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ MODAL: ADMIN LOGIN -->
+<div class="overlay" id="modal-admin">
+    <div class="modal">
+        <h3>🔐 Admin-Zugang</h3>
+        <input type="password" id="admin-pw" placeholder="Passwort eingeben…"
+               onkeydown="if(event.key==='Enter')confirmAdmin()">
+        <p class="modal-err" id="admin-err">Falsches Passwort</p>
+        <div class="modal-btns">
+            <button class="btn-cancel" onclick="closeModal('modal-admin')">Abbrechen</button>
+            <button class="btn-ok"     onclick="confirmAdmin()">Einloggen</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ MODAL: DELETE CONFIRM -->
+<div class="overlay" id="modal-delete">
+    <div class="modal">
+        <h3>Eintrag löschen?</h3>
+        <p>Bitte trag deinen Namen ein – er wird im Protokoll gespeichert.</p>
+        <input type="text" id="delete-by" placeholder="Dein Name"
+               onkeydown="if(event.key==='Enter')confirmDelete()">
+        <div class="modal-btns">
+            <button class="btn-cancel" onclick="closeModal('modal-delete')">Abbrechen</button>
+            <button class="btn-ok danger" onclick="confirmDelete()">Löschen</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════════════════════════════════════════════ SCRIPT -->
+<script>
+// ────────────────────────────────────────────────────────────────
+//  KONFIGURATION  ← hier deine Werte eintragen
+// ────────────────────────────────────────────────────────────────
+const SUPABASE_URL   = 'DEINE_SUPABASE_URL';    // z.B. https://abcdef.supabase.co
+const SUPABASE_KEY   = 'DEIN_ANON_KEY';         // langer String aus dem Dashboard
+const ADMIN_PASSWORD = 'Waldwoche2026!';         // bitte ändern!
+
+// ────────────────────────────────────────────────────────────────
+//  SUPABASE INIT
+// ────────────────────────────────────────────────────────────────
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ────────────────────────────────────────────────────────────────
+//  STATE
+// ────────────────────────────────────────────────────────────────
+let isAdmin      = false;
+let pendingDel   = null;   // { table, id, snapshot }
+let logDirty     = true;
+
+// ────────────────────────────────────────────────────────────────
+//  TABS
+// ────────────────────────────────────────────────────────────────
+function showTab(id, btn) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + id).classList.add('active');
+    btn.classList.add('active');
+}
+
+// ────────────────────────────────────────────────────────────────
+//  TOAST
+// ────────────────────────────────────────────────────────────────
+function showToast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isError ? ' error' : '');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ────────────────────────────────────────────────────────────────
+//  MODAL HELPERS
+// ────────────────────────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+// ────────────────────────────────────────────────────────────────
+//  ADMIN
+// ────────────────────────────────────────────────────────────────
+function toggleAdmin() {
+    if (isAdmin) {
+        isAdmin = false;
+        document.body.classList.remove('admin-mode');
+        document.getElementById('admin-status').textContent = 'Ansichtsmodus';
+        document.getElementById('admin-status').classList.remove('on');
+        document.getElementById('admin-btn').textContent = '🔒 Admin';
+        document.getElementById('admin-btn').classList.remove('off');
+    } else {
+        document.getElementById('admin-pw').value = '';
+        document.getElementById('admin-err').style.display = 'none';
+        openModal('modal-admin');
+        setTimeout(() => document.getElementById('admin-pw').focus(), 150);
+    }
+}
+
+function confirmAdmin() {
+    if (document.getElementById('admin-pw').value === ADMIN_PASSWORD) {
+        isAdmin = true;
+        document.body.classList.add('admin-mode');
+        document.getElementById('admin-status').textContent = '⚠️ Admin aktiv';
+        document.getElementById('admin-status').classList.add('on');
+        document.getElementById('admin-btn').textContent = '🔓 Abmelden';
+        document.getElementById('admin-btn').classList.add('off');
+        closeModal('modal-admin');
+        showToast('Admin-Modus aktiviert');
+    } else {
+        document.getElementById('admin-err').style.display = 'block';
+    }
+}
+
+// ────────────────────────────────────────────────────────────────
+//  DELETE FLOW
+// ────────────────────────────────────────────────────────────────
+function requestDelete(table, id, snapshot) {
+    pendingDel = { table, id, snapshot };
+    document.getElementById('delete-by').value = '';
+    openModal('modal-delete');
+    setTimeout(() => document.getElementById('delete-by').focus(), 150);
+}
+
+async function confirmDelete() {
+    if (!pendingDel) return;
+    const by = document.getElementById('delete-by').value.trim();
+    if (!by) { showToast('Bitte Namen eingeben', true); return; }
+
+    const { table, id, snapshot } = pendingDel;
+
+    await db.from('change_log').insert({
+        tabelle: table, zeile_id: id,
+        aktion: 'loeschung', alter_wert: snapshot, neuer_wert: null,
+        geaendert_von: by
+    });
+
+    const { error } = await db.from(table).delete().eq('id', id);
+    closeModal('modal-delete');
+    pendingDel = null;
+
+    if (error) { showToast('Fehler beim Löschen', true); return; }
+    showToast('Eintrag gelöscht');
+    logDirty = true;
+    loadAll();
+}
+
+// ────────────────────────────────────────────────────────────────
+//  LOG
+// ────────────────────────────────────────────────────────────────
+const TABLE_LABELS = {
+    essensbringdienst: 'Mittagessen',
+    feuerholz:         'Feuerholz',
+    fahrgemeinschaften:'Fahrgemeinschaften',
+    kuchenliste:       'Kuchenliste'
+};
+
+async function onLogToggle(el) {
+    if (!el.open || !logDirty) return;
+    logDirty = false;
+
+    const { data, error } = await db.from('change_log')
+        .select('*')
+        .order('zeitstempel', { ascending: false })
+        .limit(100);
+
+    const c = document.getElementById('log-content');
+
+    if (error || !data || data.length === 0) {
+        c.innerHTML = '<p style="text-align:center;color:var(--gray);padding:1rem;font-size:0.82rem">Noch keine Einträge im Protokoll.</p>';
+        return;
+    }
+
+    const rows = data.map(r => {
+        const dt  = new Date(r.zeitstempel);
+        const dts = dt.toLocaleDateString('de-DE',  { day:'2-digit', month:'2-digit', year:'2-digit' });
+        const ts  = dt.toLocaleTimeString('de-DE',  { hour:'2-digit', minute:'2-digit' });
+        const act = r.aktion === 'loeschung' ? '🗑️ Gelöscht' : '✅ Eingetragen';
+        const who = r.aktion === 'loeschung' ? (r.alter_wert?.name || '–') : (r.neuer_wert?.name || '–');
+        return `<tr>
+            <td>${dts} ${ts}</td>
+            <td>${TABLE_LABELS[r.tabelle] || r.tabelle}</td>
+            <td>${act}</td>
+            <td>${esc(who)}</td>
+            <td>${esc(r.geaendert_von || '–')}</td>
+        </tr>`;
+    }).join('');
+
+    c.innerHTML = `<table class="log-table">
+        <thead><tr><th>Zeitpunkt</th><th>Liste</th><th>Aktion</th><th>Eintrag</th><th>Geändert von</th></tr></thead>
+        <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// ────────────────────────────────────────────────────────────────
+//  LOAD ALL
+// ────────────────────────────────────────────────────────────────
+function loadAll() {
+    loadEssen();
+    loadFeuerholz();
+    loadFahrt();
+    loadKuchen();
+    logDirty = true;
+    const lw = document.getElementById('log-wrap');
+    if (lw.open) { lw.open = false; lw.open = true; }
+}
+
+// ────────────────────────────────────────────────────────────────
+//  ESSENSBRINGDIENST
+// ────────────────────────────────────────────────────────────────
+const ESSEN_TAGE = [
+    'Dienstag, 05.05.',
+    'Mittwoch, 06.05.',
+    'Donnerstag, 07.05.',
+    'Freitag, 08.05.'
+];
+
+async function loadEssen() {
+    const { data } = await db.from('essensbringdienst').select('*').order('created_at');
+    const c = document.getElementById('essen-entries');
+
+    if (!data || data.length === 0) {
+        c.innerHTML = `<div class="empty-state"><span class="icon">🍽️</span>Noch niemand eingetragen.</div>`;
+        return;
+    }
+
+    const byDay = {};
+    ESSEN_TAGE.forEach(t => byDay[t] = []);
+    data.forEach(r => { if (byDay[r.datum] !== undefined) byDay[r.datum].push(r); });
+
+    c.innerHTML = ESSEN_TAGE.map(tag => {
+        const entries = byDay[tag];
+        const cards = entries.length === 0
+            ? `<div class="slot-empty">Noch frei</div>`
+            : entries.map(e => `
+                <div class="entry-card">
+                    <div class="entry-main">
+                        <div class="entry-name">${esc(e.name)}</div>
+                    </div>
+                    <button class="delete-btn" onclick='requestDelete("essensbringdienst","${e.id}",${JSON.stringify(e)})' title="Löschen">🗑️</button>
+                </div>`).join('');
+        return `<div class="day-group"><div class="day-label">${tag}</div>${cards}</div>`;
+    }).join('');
+}
+
+async function submitEssen(ev) {
+    ev.preventDefault();
+    const datum = document.getElementById('essen-datum').value;
+    const name  = document.getElementById('essen-name').value.trim();
+    const btn   = ev.target.querySelector('button');
+    btn.disabled = true;
+
+    const { data, error } = await db.from('essensbringdienst').insert({ datum, name }).select().single();
+    if (error) { showToast('Fehler beim Eintragen', true); }
+    else {
+        await logEntry('essensbringdienst', data.id, data, name);
+        showToast('✅ Eingetragen!');
+        ev.target.reset();
+        loadEssen();
+    }
+    btn.disabled = false;
+}
+
+// ────────────────────────────────────────────────────────────────
+//  FEUERHOLZ
+// ────────────────────────────────────────────────────────────────
+async function loadFeuerholz() {
+    const { data } = await db.from('feuerholz').select('*').order('datum').order('created_at');
+    const c = document.getElementById('feuerholz-entries');
+
+    if (!data || data.length === 0) {
+        c.innerHTML = `<div class="empty-state"><span class="icon">🪵</span>Noch niemand eingetragen.</div>`;
+        return;
+    }
+
+    c.innerHTML = data.map(e => `
+        <div class="entry-card">
+            <span class="badge">${esc(e.datum)}</span>
+            <div class="entry-main">
+                <div class="entry-name">${esc(e.name)}</div>
+            </div>
+            <button class="delete-btn" onclick='requestDelete("feuerholz","${e.id}",${JSON.stringify(e)})' title="Löschen">🗑️</button>
+        </div>`).join('');
+}
+
+async function submitFeuerholz(ev) {
+    ev.preventDefault();
+    const datum = document.getElementById('feuerholz-datum').value;
+    const name  = document.getElementById('feuerholz-name').value.trim();
+    const btn   = ev.target.querySelector('button');
+    btn.disabled = true;
+
+    const { data, error } = await db.from('feuerholz').insert({ datum, name }).select().single();
+    if (error) { showToast('Fehler beim Eintragen', true); }
+    else {
+        await logEntry('feuerholz', data.id, data, name);
+        showToast('✅ Eingetragen!');
+        ev.target.reset();
+        loadFeuerholz();
+    }
+    btn.disabled = false;
+}
+
+// ────────────────────────────────────────────────────────────────
+//  FAHRGEMEINSCHAFTEN
+// ────────────────────────────────────────────────────────────────
+async function loadFahrt() {
+    const { data } = await db.from('fahrgemeinschaften').select('*').order('created_at');
+
+    const suche = data ? data.filter(r => r.typ === 'suche') : [];
+    const biete = data ? data.filter(r => r.typ === 'biete') : [];
+
+    renderFahrtList(suche, 'fahrt-suche');
+    renderFahrtList(biete, 'fahrt-biete');
+}
+
+function renderFahrtList(items, containerId) {
+    const c = document.getElementById(containerId);
+    if (items.length === 0) {
+        c.innerHTML = `<div class="empty-state" style="padding:0.75rem"><span style="font-size:1.5rem;display:block;margin-bottom:0.25rem">😶</span>Keine Einträge</div>`;
+        return;
+    }
+    c.innerHTML = items.map(e => `
+        <div class="fahr-card">
+            <div class="fahr-card-header">
+                <div class="fahr-name">${esc(e.name)}</div>
+                <button class="delete-btn" onclick='requestDelete("fahrgemeinschaften","${e.id}",${JSON.stringify(e)})' title="Löschen">🗑️</button>
+            </div>
+            <div class="fahr-sub">👶 ${esc(e.gruppe)}</div>
+            <div class="fahr-sub">📞 ${esc(e.telefon)}</div>
+        </div>`).join('');
+}
+
+async function submitFahrt(ev) {
+    ev.preventDefault();
+    const typ     = document.querySelector('input[name="fahrt-typ"]:checked')?.value;
+    const name    = document.getElementById('fahrt-name').value.trim();
+    const gruppe  = document.getElementById('fahrt-gruppe').value.trim();
+    const telefon = document.getElementById('fahrt-telefon').value.trim();
+    const btn     = ev.target.querySelector('button');
+    btn.disabled  = true;
+
+    const { data, error } = await db.from('fahrgemeinschaften').insert({ typ, name, gruppe, telefon }).select().single();
+    if (error) { showToast('Fehler beim Eintragen', true); }
+    else {
+        await logEntry('fahrgemeinschaften', data.id, data, name);
+        showToast('✅ Eingetragen!');
+        ev.target.reset();
+        loadFahrt();
+    }
+    btn.disabled = false;
+}
+
+// ────────────────────────────────────────────────────────────────
+//  KUCHENLISTE
+// ────────────────────────────────────────────────────────────────
+async function loadKuchen() {
+    const { data } = await db.from('kuchenliste').select('*').order('datum').order('created_at');
+    const c = document.getElementById('kuchen-entries');
+
+    if (!data || data.length === 0) {
+        c.innerHTML = `<div class="empty-state"><span class="icon">🎂</span>Noch niemand eingetragen.</div>`;
+        return;
+    }
+
+    c.innerHTML = data.map(e => `
+        <div class="entry-card">
+            <span class="badge">${esc(e.datum)}</span>
+            <div class="entry-main">
+                <div class="entry-name">${esc(e.name)}</div>
+                <div class="entry-sub">${esc(e.kuchenart)}</div>
+            </div>
+            <button class="delete-btn" onclick='requestDelete("kuchenliste","${e.id}",${JSON.stringify(e)})' title="Löschen">🗑️</button>
+        </div>`).join('');
+}
+
+async function submitKuchen(ev) {
+    ev.preventDefault();
+    const name      = document.getElementById('kuchen-name').value.trim();
+    const kuchenart = document.getElementById('kuchen-art').value.trim();
+    const datum     = document.getElementById('kuchen-datum').value;
+    const btn       = ev.target.querySelector('button');
+    btn.disabled    = true;
+
+    const { data, error } = await db.from('kuchenliste').insert({ name, kuchenart, datum }).select().single();
+    if (error) { showToast('Fehler beim Eintragen', true); }
+    else {
+        await logEntry('kuchenliste', data.id, data, name);
+        showToast('✅ Eingetragen!');
+        ev.target.reset();
+        loadKuchen();
+    }
+    btn.disabled = false;
+}
+
+// ────────────────────────────────────────────────────────────────
+//  HELPERS
+// ────────────────────────────────────────────────────────────────
+async function logEntry(table, id, snapshot, by) {
+    await db.from('change_log').insert({
+        tabelle: table, zeile_id: id,
+        aktion: 'eintrag', alter_wert: null, neuer_wert: snapshot,
+        geaendert_von: by
+    });
+    logDirty = true;
+}
+
+function esc(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+// ────────────────────────────────────────────────────────────────
+//  INIT
+// ────────────────────────────────────────────────────────────────
+loadAll();
+</script>
+</body>
+</html>
