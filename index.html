@@ -229,6 +229,43 @@
         }
         .btn-sm.off { background: var(--red); }
 
+        /* ── KUCHEN TAGES-ÜBERSICHT ── */
+        .kuchen-day {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 0.6rem;
+            overflow: hidden;
+        }
+        .kuchen-day-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.55rem 0.9rem;
+            background: var(--green-light);
+            border-bottom: 1px solid var(--border);
+        }
+        .kuchen-day-name  { font-weight: 700; font-size: 0.85rem; color: var(--green-dark); }
+        .kuchen-day-badge {
+            font-size: 0.72rem; font-weight: 600; padding: 0.15rem 0.5rem;
+            border-radius: 20px; background: var(--green); color: #fff;
+        }
+        .kuchen-day-badge.full { background: var(--amber); color: #1a1a1a; }
+        .kuchen-slots { padding: 0.5rem 0.9rem 0.6rem; display: flex; flex-direction: column; gap: 0.35rem; }
+        .kuchen-slot {
+            display: flex; align-items: center; gap: 0.6rem;
+            font-size: 0.83rem;
+        }
+        .slot-dot {
+            width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+        }
+        .slot-dot.filled { background: var(--green); }
+        .slot-dot.empty  { background: #ccc; }
+        .slot-text { flex: 1; }
+        .slot-name { font-weight: 600; }
+        .slot-art  { color: var(--gray); font-size: 0.78rem; }
+        .slot-empty-label { color: #bbb; font-style: italic; }
+
         /* ── WALDFEST COUNTDOWN ── */
         .countdown-box {
             background: linear-gradient(135deg, #1e4d28 0%, #3a7d44 100%);
@@ -498,11 +535,12 @@
 <!-- ═══════════════════════════════════════════════════════ TAB: KUCHEN -->
 <section id="tab-kuchen" class="tab-content">
     <div class="info-box">
-        Wer bringt einen Kuchen oder Gebäck mit? Trag dich hier ein!
+        Pro Tag gibt es <strong>3 Slots</strong> – idealerweise je ein Kuchen pro Gruppe.
+        Trag dich für einen freien Tag ein!
     </div>
 
     <div class="entries-section">
-        <div class="section-title">Kuchenliste</div>
+        <div class="section-title">Übersicht pro Tag</div>
         <div id="kuchen-entries"><div class="loading">Lädt…</div></div>
     </div>
 
@@ -510,27 +548,18 @@
         <div class="section-title">Ich bringe Kuchen / Gebäck</div>
         <form id="kuchen-form" onsubmit="submitKuchen(event)">
             <div class="form-group">
+                <label for="kuchen-datum">Tag *</label>
+                <select id="kuchen-datum" required>
+                    <option value="">Bitte wählen…</option>
+                </select>
+            </div>
+            <div class="form-group">
                 <label for="kuchen-name">Dein Name *</label>
                 <input type="text" id="kuchen-name" placeholder="Vorname Nachname" required>
             </div>
             <div class="form-group">
                 <label for="kuchen-art">Was bringst du mit? *</label>
                 <input type="text" id="kuchen-art" placeholder="z.B. Schokoladenkuchen, Muffins…" required>
-            </div>
-            <div class="form-group">
-                <label for="kuchen-datum">Für welchen Tag? *</label>
-                <select id="kuchen-datum" required>
-                    <option value="">Bitte wählen…</option>
-                    <option>Dienstag, 05.05.</option>
-                    <option>Mittwoch, 06.05.</option>
-                    <option>Donnerstag, 07.05.</option>
-                    <option>Freitag, 08.05.</option>
-                    <option>Samstag, 09.05.</option>
-                    <option>Sonntag, 10.05.</option>
-                    <option>Montag, 11.05.</option>
-                    <option>Dienstag, 12.05.</option>
-                    <option>Mittwoch, 13.05.</option>
-                </select>
             </div>
             <button type="submit" class="btn">Eintragen</button>
         </form>
@@ -943,33 +972,80 @@ async function submitFahrt(ev) {
 // ────────────────────────────────────────────────────────────────
 //  KUCHENLISTE
 // ────────────────────────────────────────────────────────────────
+const KUCHEN_TAGE = [
+    'Dienstag, 05.05.', 'Mittwoch, 06.05.', 'Donnerstag, 07.05.', 'Freitag, 08.05.',
+    'Samstag, 09.05.', 'Sonntag, 10.05.', 'Montag, 11.05.', 'Dienstag, 12.05.', 'Mittwoch, 13.05.'
+];
+const KUCHEN_MAX = 3;
+
 async function loadKuchen() {
-    const { data } = await db.from('kuchenliste').select('*').order('datum').order('created_at');
+    const { data } = await db.from('kuchenliste').select('*').order('created_at');
     const c = document.getElementById('kuchen-entries');
 
-    if (!data || data.length === 0) {
-        c.innerHTML = `<div class="empty-state"><span class="icon">🎂</span>Noch niemand eingetragen.</div>`;
-        return;
-    }
+    // Einträge pro Tag gruppieren
+    const byDay = {};
+    KUCHEN_TAGE.forEach(t => byDay[t] = []);
+    (data || []).forEach(r => { if (byDay[r.datum] !== undefined) byDay[r.datum].push(r); });
 
-    c.innerHTML = data.map(e => `
-        <div class="entry-card">
-            <span class="badge">${esc(e.datum)}</span>
-            <div class="entry-main">
-                <div class="entry-name">${esc(e.name)}</div>
-                <div class="entry-sub">${esc(e.kuchenart)}</div>
+    // Tages-Übersicht rendern
+    c.innerHTML = KUCHEN_TAGE.map(tag => {
+        const entries = byDay[tag];
+        const count   = entries.length;
+        const full    = count >= KUCHEN_MAX;
+
+        const slots = Array.from({ length: KUCHEN_MAX }, (_, i) => {
+            const e = entries[i];
+            if (e) return `
+                <div class="kuchen-slot">
+                    <div class="slot-dot filled"></div>
+                    <div class="slot-text">
+                        <span class="slot-name">${esc(e.name)}</span>
+                        <span class="slot-art"> · ${esc(e.kuchenart)}</span>
+                    </div>
+                    <button class="delete-btn" onclick='requestDelete("kuchenliste","${e.id}",${JSON.stringify(e)})' title="Löschen">🗑️</button>
+                </div>`;
+            return `<div class="kuchen-slot">
+                        <div class="slot-dot empty"></div>
+                        <div class="slot-empty-label">Noch frei</div>
+                    </div>`;
+        }).join('');
+
+        return `<div class="kuchen-day">
+            <div class="kuchen-day-header">
+                <span class="kuchen-day-name">${tag}</span>
+                <span class="kuchen-day-badge${full ? ' full' : ''}">${count}/${KUCHEN_MAX}${full ? ' ✓ voll' : ''}</span>
             </div>
-            <button class="delete-btn" onclick='requestDelete("kuchenliste","${e.id}",${JSON.stringify(e)})' title="Löschen">🗑️</button>
-        </div>`).join('');
+            <div class="kuchen-slots">${slots}</div>
+        </div>`;
+    }).join('');
+
+    // Select-Optionen aktualisieren (volle Tage deaktivieren)
+    const sel = document.getElementById('kuchen-datum');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">Bitte wählen…</option>' +
+        KUCHEN_TAGE.map(t => {
+            const cnt  = byDay[t].length;
+            const full = cnt >= KUCHEN_MAX;
+            return `<option value="${t}"${full ? ' disabled' : ''}${t === cur ? ' selected' : ''}>${t} (${cnt}/${KUCHEN_MAX}${full ? ' – voll' : ''})</option>`;
+        }).join('');
 }
 
 async function submitKuchen(ev) {
     ev.preventDefault();
+    const datum     = document.getElementById('kuchen-datum').value;
     const name      = document.getElementById('kuchen-name').value.trim();
     const kuchenart = document.getElementById('kuchen-art').value.trim();
-    const datum     = document.getElementById('kuchen-datum').value;
     const btn       = ev.target.querySelector('button');
     btn.disabled    = true;
+
+    // Nochmal serverseitig prüfen ob Tag voll
+    const { count } = await db.from('kuchenliste').select('*', { count: 'exact', head: true }).eq('datum', datum);
+    if (count >= KUCHEN_MAX) {
+        showToast('Dieser Tag ist bereits voll (3/3)', true);
+        btn.disabled = false;
+        loadKuchen();
+        return;
+    }
 
     const { data, error } = await db.from('kuchenliste').insert({ name, kuchenart, datum }).select().single();
     if (error) { showToast('Fehler beim Eintragen', true); }
