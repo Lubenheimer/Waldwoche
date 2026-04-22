@@ -229,6 +229,66 @@
         }
         .btn-sm.off { background: var(--red); }
 
+        /* ── WALDFEST COUNTDOWN ── */
+        .countdown-box {
+            background: linear-gradient(135deg, #1e4d28 0%, #3a7d44 100%);
+            border-radius: 16px;
+            padding: 1.5rem 1rem;
+            text-align: center;
+            color: white;
+            margin-bottom: 1.25rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .countdown-box::before {
+            content: '🎪';
+            position: absolute;
+            font-size: 6rem;
+            opacity: 0.08;
+            top: -0.5rem;
+            right: -0.5rem;
+        }
+        .countdown-number {
+            font-size: 4rem;
+            font-weight: 900;
+            line-height: 1;
+            margin-bottom: 0.25rem;
+        }
+        .countdown-label {
+            font-size: 0.95rem;
+            opacity: 0.9;
+            font-weight: 500;
+        }
+        .countdown-sub {
+            font-size: 0.78rem;
+            opacity: 0.65;
+            margin-top: 0.3rem;
+        }
+        .progress-bar-wrap {
+            background: rgba(255,255,255,0.2);
+            border-radius: 20px;
+            height: 10px;
+            margin: 1rem 0 0.5rem;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            background: var(--amber);
+            height: 100%;
+            border-radius: 20px;
+            transition: width 0.6s ease;
+        }
+        .progress-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.72rem;
+            opacity: 0.7;
+        }
+        .countdown-done {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
         /* ── LOADING ── */
         .loading { text-align: center; padding: 1.5rem; color: var(--gray); font-size: 0.82rem; }
 
@@ -299,6 +359,9 @@
     </button>
     <button class="tab-btn" onclick="showTab('kuchen', this)">
         <span class="icon">🎂</span>Kuchen
+    </button>
+    <button class="tab-btn" onclick="showTab('waldfest', this)">
+        <span class="icon">🎪</span>Waldfest
     </button>
 </nav>
 
@@ -468,6 +531,33 @@
                     <option>Dienstag, 12.05.</option>
                     <option>Mittwoch, 13.05.</option>
                 </select>
+            </div>
+            <button type="submit" class="btn">Eintragen</button>
+        </form>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ TAB: WALDFEST -->
+<section id="tab-waldfest" class="tab-content">
+    <div id="waldfest-countdown">
+        <div class="loading">Lädt…</div>
+    </div>
+
+    <div class="entries-section">
+        <div class="section-title">Wer bringt Kuchen zum Waldfest?</div>
+        <div id="waldfest-entries"><div class="loading">Lädt…</div></div>
+    </div>
+
+    <div class="form-section">
+        <div class="section-title">Ich bringe Kuchen zum Waldfest</div>
+        <form id="waldfest-form" onsubmit="submitWaldfest(event)">
+            <div class="form-group">
+                <label for="waldfest-name">Dein Name *</label>
+                <input type="text" id="waldfest-name" placeholder="Vorname Nachname" required>
+            </div>
+            <div class="form-group">
+                <label for="waldfest-art">Was bringst du mit? *</label>
+                <input type="text" id="waldfest-art" placeholder="z.B. Erdbeerkuchen, Brownies…" required>
             </div>
             <button type="submit" class="btn">Eintragen</button>
         </form>
@@ -644,7 +734,8 @@ const TABLE_LABELS = {
     essensbringdienst: 'Mittagessen',
     feuerholz:         'Feuerholz',
     fahrgemeinschaften:'Fahrgemeinschaften',
-    kuchenliste:       'Kuchenliste'
+    kuchenliste:       'Kuchenliste',
+    waldfest_kuchen:   'Waldfest'
 };
 
 async function onLogToggle(el) {
@@ -692,6 +783,7 @@ function loadAll() {
     loadFeuerholz();
     loadFahrt();
     loadKuchen();
+    loadWaldfest();
     logDirty = true;
     const lw = document.getElementById('log-wrap');
     if (lw.open) { lw.open = false; lw.open = true; }
@@ -886,6 +978,77 @@ async function submitKuchen(ev) {
         showToast('✅ Eingetragen!');
         ev.target.reset();
         loadKuchen();
+    }
+    btn.disabled = false;
+}
+
+// ────────────────────────────────────────────────────────────────
+//  WALDFEST
+// ────────────────────────────────────────────────────────────────
+const WALDFEST_ZIEL = 20;
+
+async function loadWaldfest() {
+    const { data } = await db.from('waldfest_kuchen').select('*').order('created_at');
+    const count = data ? data.length : 0;
+    const remaining = Math.max(0, WALDFEST_ZIEL - count);
+    const pct = Math.min(100, Math.round((count / WALDFEST_ZIEL) * 100));
+
+    // Countdown-Box rendern
+    const cdBox = document.getElementById('waldfest-countdown');
+    if (remaining === 0) {
+        cdBox.innerHTML = `
+            <div class="countdown-box">
+                <div class="countdown-done">🎉 Wir haben es geschafft!</div>
+                <div class="countdown-label">Alle 20 Kuchen sind eingetragen – das wird ein tolles Fest!</div>
+                <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:100%"></div></div>
+                <div class="progress-labels"><span>0</span><span>${WALDFEST_ZIEL} Kuchen ✅</span></div>
+            </div>`;
+    } else {
+        cdBox.innerHTML = `
+            <div class="countdown-box">
+                <div class="countdown-number">${remaining}</div>
+                <div class="countdown-label">Kuchen noch bis zu einem tollen Fest! 🎂</div>
+                <div class="countdown-sub">${count} von ${WALDFEST_ZIEL} eingetragen</div>
+                <div class="progress-bar-wrap">
+                    <div class="progress-bar-fill" style="width:${pct}%"></div>
+                </div>
+                <div class="progress-labels">
+                    <span>${count} eingetragen</span>
+                    <span>Ziel: ${WALDFEST_ZIEL}</span>
+                </div>
+            </div>`;
+    }
+
+    // Einträge rendern
+    const c = document.getElementById('waldfest-entries');
+    if (!data || data.length === 0) {
+        c.innerHTML = `<div class="empty-state"><span class="icon">🎪</span>Noch niemand eingetragen – sei der Erste!</div>`;
+        return;
+    }
+    c.innerHTML = data.map(e => `
+        <div class="entry-card">
+            <div class="entry-main">
+                <div class="entry-name">${esc(e.name)}</div>
+                <div class="entry-sub">${esc(e.kuchenart)}</div>
+            </div>
+            <button class="delete-btn" onclick='requestDelete("waldfest_kuchen","${e.id}",${JSON.stringify(e)})' title="Löschen">🗑️</button>
+        </div>`).join('');
+}
+
+async function submitWaldfest(ev) {
+    ev.preventDefault();
+    const name      = document.getElementById('waldfest-name').value.trim();
+    const kuchenart = document.getElementById('waldfest-art').value.trim();
+    const btn       = ev.target.querySelector('button');
+    btn.disabled    = true;
+
+    const { data, error } = await db.from('waldfest_kuchen').insert({ name, kuchenart }).select().single();
+    if (error) { showToast('Fehler beim Eintragen', true); }
+    else {
+        await logEntry('waldfest_kuchen', data.id, data, name);
+        showToast('✅ Eingetragen!');
+        ev.target.reset();
+        loadWaldfest();
     }
     btn.disabled = false;
 }
