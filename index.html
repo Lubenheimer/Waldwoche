@@ -424,6 +424,36 @@
             margin-bottom: 0.25rem;
         }
 
+        /* ── WALDFEST KUCHEN COUNTDOWN ── */
+        .countdown-box {
+            background: linear-gradient(135deg, var(--green-dark), #2d6a35);
+            color: #fff;
+            border-radius: 14px;
+            padding: 1.1rem 1.2rem;
+            text-align: center;
+        }
+        .countdown-number {
+            font-size: 2.8rem;
+            font-weight: 900;
+            line-height: 1;
+            color: var(--amber);
+        }
+        .countdown-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-top: 0.25rem;
+        }
+        .countdown-sub {
+            font-size: 0.75rem;
+            opacity: 0.65;
+            margin-top: 0.5rem;
+        }
+        .countdown-done {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: var(--amber);
+        }
+
         /* ── LOADING ── */
         .loading { text-align: center; padding: 1.5rem; color: var(--gray); font-size: 0.82rem; }
 
@@ -703,6 +733,33 @@
         <div class="section-title">Helferliste</div>
         <div id="helfer-entries"><div class="loading">Lädt…</div></div>
     </div>
+
+    <hr style="border:none;border-top:2px solid var(--border);margin:1.25rem 0">
+
+    <!-- KUCHEN COUNTDOWN -->
+    <div id="waldfest-countdown" style="margin-bottom:1.25rem"></div>
+
+    <!-- Kuchen-Einträge -->
+    <div class="entries-section">
+        <div class="section-title">🎂 Wer bringt Kuchen?</div>
+        <div id="wf-kuchen-entries"><div class="loading">Lädt…</div></div>
+    </div>
+
+    <!-- Kuchen-Formular -->
+    <div class="form-section">
+        <div class="section-title">Ich bringe Kuchen zum Waldfest</div>
+        <form id="wf-kuchen-form" onsubmit="submitWfKuchen(event)">
+            <div class="form-group">
+                <label for="wf-kuchen-name">Dein Name *</label>
+                <input type="text" id="wf-kuchen-name" placeholder="Vorname Nachname" required>
+            </div>
+            <div class="form-group">
+                <label for="wf-kuchen-art">Was bringst du mit? *</label>
+                <input type="text" id="wf-kuchen-art" placeholder="z.B. Erdbeerkuchen, Brownies…" required>
+            </div>
+            <button type="submit" class="btn">Eintragen</button>
+        </form>
+    </div>
 </section>
 
 <!-- ═══════════════════════════════════════════════════════ LOG -->
@@ -890,6 +947,8 @@ const TABLE_LABELS = {
     feuerholz:         'Feuerholz',
     fahrgemeinschaften:'Fahrgemeinschaften',
     kuchenliste:       'Kuchenliste',
+    waldfest_kuchen:   'Waldfest Kuchen',
+    waldfest_helfer:   'Waldfest Helfer',
     waldfest_kuchen:   'Waldfest'
 };
 
@@ -1277,6 +1336,82 @@ function esc(str) {
 }
 
 // ────────────────────────────────────────────────────────────────
+//  WALDFEST KUCHEN
+// ────────────────────────────────────────────────────────────────
+const WF_KUCHEN_ZIEL = 20; // Ziel-Anzahl Kuchen für den Countdown
+
+async function loadWfKuchen() {
+    const { data } = await db
+        .from('waldfest_kuchen')
+        .select('*')
+        .order('created_at');
+
+    // Countdown rendern
+    const count     = data ? data.length : 0;
+    const fehlend   = Math.max(0, WF_KUCHEN_ZIEL - count);
+    const countdown = document.getElementById('waldfest-countdown');
+
+    if (fehlend === 0) {
+        countdown.innerHTML = `
+            <div class="countdown-box">
+                <div class="countdown-done">🎉 Ziel erreicht!</div>
+                <div class="countdown-label">Wir haben ${count} Kuchen – das wird ein tolles Fest!</div>
+            </div>`;
+    } else {
+        countdown.innerHTML = `
+            <div class="countdown-box">
+                <div class="countdown-number">${fehlend}</div>
+                <div class="countdown-label">Kuchen fehlen noch bis zum tollen Fest!</div>
+                <div class="countdown-sub">${count} von ${WF_KUCHEN_ZIEL} bereits eingetragen</div>
+            </div>`;
+    }
+
+    // Liste rendern
+    const c = document.getElementById('wf-kuchen-entries');
+    if (!data || data.length === 0) {
+        c.innerHTML = `<div class="empty-state"><span class="icon">🎂</span>Noch niemand eingetragen.</div>`;
+        return;
+    }
+    c.innerHTML = data.map(e => `
+        <div class="entry-card">
+            <div class="entry-main">
+                <div class="entry-name">${esc(e.name)}</div>
+                <div class="entry-sub">${esc(e.kuchenart)}</div>
+            </div>
+            <button class="delete-btn"
+                onclick='requestDelete("waldfest_kuchen","${e.id}",${JSON.stringify(e)})'
+                title="Löschen">🗑️</button>
+        </div>`).join('');
+}
+
+async function submitWfKuchen(ev) {
+    ev.preventDefault();
+    const name      = document.getElementById('wf-kuchen-name').value.trim();
+    const kuchenart = document.getElementById('wf-kuchen-art').value.trim();
+    const btn       = ev.target.querySelector('button');
+    btn.disabled    = true;
+
+    const { data, error } = await db
+        .from('waldfest_kuchen')
+        .insert({ name, kuchenart })
+        .select().single();
+
+    if (error) { showToast('Fehler beim Eintragen', true); }
+    else {
+        await db.from('change_log').insert({
+            tabelle: 'waldfest_kuchen', zeile_id: data.id,
+            aktion: 'eintrag', alter_wert: null, neuer_wert: data,
+            geaendert_von: name
+        });
+        logDirty = true;
+        showToast('✅ Eingetragen!');
+        ev.target.reset();
+        loadWfKuchen();
+    }
+    btn.disabled = false;
+}
+
+// ────────────────────────────────────────────────────────────────
 //  WALDFEST HELFERLISTE
 // ────────────────────────────────────────────────────────────────
 let pendingHelfen = null; // { aufgabeId, titel }
@@ -1426,6 +1561,7 @@ async function deleteAufgabe(id, titel) {
 // ────────────────────────────────────────────────────────────────
 loadAll();
 loadHelfer();
+loadWfKuchen();
 </script>
 </body>
 </html>
