@@ -538,7 +538,7 @@
     </div>
 
     <div class="entries-section">
-        <div class="section-title">Wer bringt das Essen?</div>
+        <div class="section-title">Übersicht pro Tag</div>
         <div id="essen-entries"><div class="loading">Lädt…</div></div>
     </div>
 
@@ -1025,27 +1025,39 @@ async function loadEssen() {
     const { data } = await db.from('essensbringdienst').select('*').order('created_at');
     const c = document.getElementById('essen-entries');
 
-    if (!data || data.length === 0) {
-        c.innerHTML = `<div class="empty-state"><span class="icon">🍽️</span>Noch niemand eingetragen.</div>`;
-        return;
-    }
-
     const byDay = {};
     ESSEN_TAGE.forEach(t => byDay[t] = []);
-    data.forEach(r => { if (byDay[r.datum] !== undefined) byDay[r.datum].push(r); });
+    (data || []).forEach(r => { if (byDay[r.datum] !== undefined) byDay[r.datum].push(r); });
 
     c.innerHTML = ESSEN_TAGE.map(tag => {
         const entries = byDay[tag];
-        const cards = entries.length === 0
-            ? `<div class="slot-empty">Noch frei</div>`
-            : entries.map(e => `
-                <div class="entry-card">
-                    <div class="entry-main">
-                        <div class="entry-name">${esc(e.name)}</div>
+        const count   = entries.length;
+        const max     = 1;
+        const full    = count >= max;
+
+        const slots = Array.from({ length: max }, (_, i) => {
+            const e = entries[i];
+            if (e) return `
+                <div class="kuchen-slot">
+                    <div class="slot-dot filled"></div>
+                    <div class="slot-text">
+                        <span class="slot-name">${esc(e.name)}</span>
                     </div>
                     <button class="delete-btn" onclick='requestDelete("essensbringdienst","${e.id}",${JSON.stringify(e)})' title="Löschen">🗑️</button>
-                </div>`).join('');
-        return `<div class="day-group"><div class="day-label">${tag}</div>${cards}</div>`;
+                </div>`;
+            return `<div class="kuchen-slot">
+                        <div class="slot-dot empty"></div>
+                        <div class="slot-empty-label">Noch frei</div>
+                    </div>`;
+        }).join('');
+
+        return `<div class="kuchen-day">
+            <div class="kuchen-day-header">
+                <span class="kuchen-day-name">${tag}</span>
+                <span class="kuchen-day-badge${full ? ' full' : ''}">${count}/${max}${full ? ' ✓' : ''}</span>
+            </div>
+            <div class="kuchen-slots">${slots}</div>
+        </div>`;
     }).join('');
 }
 
